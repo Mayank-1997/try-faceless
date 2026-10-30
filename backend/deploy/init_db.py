@@ -8,8 +8,12 @@ then runs ``alembic stamp head`` so future ``upgrade head`` runs are no-ops.
 """
 
 import asyncio
+import os
+import sys
 
-import src.persistence.models  # noqa: F401 — register all models on the metadata
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import src.persistence.models  # noqa: E402,F401 — register all models on the metadata
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from src.core.config import get_settings

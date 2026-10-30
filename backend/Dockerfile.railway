@@ -24,6 +24,7 @@ COPY backend/ ./
 
 EXPOSE 8000
 
-# Run DB migrations, then start API + worker + beat under supervisord so all
-# processes share the mounted volume at /app/storage.
-CMD ["sh", "-c", "alembic upgrade head && supervisord -c /app/deploy/supervisord.conf"]
+# Create the schema (create_all — auth tables have no migration), stamp
+# alembic so upgrades are no-ops, then start API + worker + beat under
+# supervisord so all processes share the mounted volume at /app/storage.
+CMD ["sh", "-c", "python deploy/init_db.py && alembic stamp head && supervisord -c /app/deploy/supervisord.conf"]

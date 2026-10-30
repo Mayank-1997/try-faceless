@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Docker
+docker-compose.override.yml
+
+# Storage (generated assets — top-level only, not source code dirs)
+/storage/
+**/storage/assets/
+**/storage/output/
+**/storage/temp/
+*.mp4
+*.mp3
+*.wav
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.srt
+*.vtt
+
+# Frontend (Phase 9)
+node_modules/
+.next/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Temp artifacts
+.tmp_frames/
+*.zip
+test_download.zip

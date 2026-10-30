@@ -1,0 +1,29 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PORT=8000
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ffmpeg \
+    libpq-dev \
+    curl \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Build context is the REPO ROOT (Railway default), so paths are backend/-prefixed.
+COPY backend/pyproject.toml ./
+RUN pip install --upgrade pip && pip install -e ".[dev]"
+
+COPY backend/ ./
+
+EXPOSE 8000
+
+# Run DB migrations, then start API + worker + beat under supervisord so all
+# processes share the mounted volume at /app/storage.
+CMD ["sh", "-c", "alembic upgrade head && supervisord -c /app/deploy/supervisord.conf"]

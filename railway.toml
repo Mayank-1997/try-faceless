@@ -1,0 +1,18 @@
+# Railway deployment config — single service running API + Celery worker +
+# beat under supervisord (see backend/deploy/supervisord.conf).
+#
+# Build context is the repo root; the Dockerfile lives in backend/.
+# Attach a Railway Volume at mount path: /app/storage
+# (Volumes are per-service and cannot be shared — that's why api+worker run
+# in one container.)
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile.railway"
+
+[deploy]
+# startCommand comes from the Dockerfile CMD (alembic upgrade head + supervisord).
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

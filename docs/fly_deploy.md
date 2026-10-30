@@ -93,19 +93,20 @@ anything sensitive. Install flyctl, `fly auth login`, then:
 fly secrets set `
   DATABASE_URL="postgresql://<neon-user>:<neon-pass>@<neon-host>/<neon-db>" `
   REDIS_HOST="<upstash-host>" `
-  REDIS_PORT="<upstash-port>" `
-  REDIS_PASSWORD="<upstash-pass>" `
-  CELERY_BROKER_URL="rediss://default:<pass>@<host>:<port>/1" `
-  CELERY_RESULT_BACKEND="rediss://default:<pass>@<host>:<port>/2" `
+  REDIS_PORT="6379" `
+  REDIS_PASSWORD="<upstash-token>" `
+  CELERY_BROKER_URL="rediss://default:<token>@<host>:6379/0?ssl_cert_reqs=CERT_REQUIRED" `
+  CELERY_RESULT_BACKEND="rediss://default:<token>@<host>:6379/0?ssl_cert_reqs=CERT_REQUIRED" `
   JWT_SECRET_KEY="<random 64+ chars>" `
   GEMINI_API_KEY="<key>" `
   FAL_KEY="<fal-key>" `
-  KLING_API_KEY="<fal-key>" `
-  PEXELS_API_KEY="<key>" `
-  PIXABAY_API_KEY="<key>" `
-  UNSPLASH_API_KEY="<key>" `
+  STOCK_PEXELS_API_KEY="<key>" `
+  STOCK_PIXABAY_API_KEY="<key>" `
+  STOCK_UNSPLASH_API_KEY="<key>" `
+  LANGFUSE_ENABLED="true" `
   LANGFUSE_PUBLIC_KEY="..." `
   LANGFUSE_SECRET_KEY="..." `
+  LANGFUSE_HOST="https://cloud.langfuse.com" `
   LOKI_ENABLED="true" `
   LOKI_URL="https://logs-prod-028.grafana.net" `
   LOKI_USER="<id>" `
@@ -113,19 +114,36 @@ fly secrets set `
   -a ai-studio-api
 ```
 
-Setting secrets **restarts** the machine — that's normal.
+> **Upstash gotchas (verified 2026-10-30):**
+> - The console's `UPSTASH_REDIS_REST_TOKEN` doubles as the TCP password.
+> - **Only DB `0` exists** — `rediss://.../1` fails with `Only 0th database
+>   is supported`. Broker and result backend share `/0` (celery namespaces
+>   result keys, so this is safe).
+> - Celery **requires** `?ssl_cert_reqs=CERT_REQUIRED` on `rediss://` URLs.
+> - `KLING_API_KEY` is not needed — `KlingSettings.api_key` reads `FAL_KEY`.
+> - Stock providers use `STOCK_*_API_KEY` names, not `PEXELS_API_KEY`.
+
+Setting secrets **restarts** the machine — that's normal. If the machine was
+already `stopped` (e.g. after crash-looping), secrets updates won't boot it —
+run `flyctl machine start <id> -a ai-studio-api`.
 
 ## Step 6 — Verify backend
 
 ```powershell
-fly logs -a ai-studio-api        # watch alembic → supervisord → uvicorn
+fly logs -a ai-studio-api        # watch init_db → supervisord → uvicorn
 fly status -a ai-studio-api      # machine should be "started"
 ```
 
 Then: `curl https://ai-studio-api.fly.dev/health` → `{"status":"healthy"}`
 
-Expected log lines: `alembic upgrade head` → `default_roles_seeded` →
-`database_connected` → `loki_log_shipping_enabled`.
+Expected log lines: `database schema initialised` → `default_roles_seeded` →
+`database_connected` → `celery@<id> ready.` → `Connected to rediss://...`.
+
+> **Schema init**: the CMD is `python deploy/init_db.py && alembic stamp head
+> && supervisord ...` — NOT `alembic upgrade head`. Migration `0002` FKs to
+> `users` (auth tables have no migration; dev relies on `create_all`).
+> `init_db.py` runs the same `create_all` in production, `stamp head` marks
+> migrations applied so future upgrades stay no-ops.
 
 ## Step 7 — Vercel (frontend)
 
@@ -162,16 +180,22 @@ fly secrets set CORS_ORIGINS="https://<app>.vercel.app" -a ai-studio-api
 
 | Blocker | Status |
 |---|---|
-| Volume required before mount | ⚠️ `fly volumes create` BEFORE deploy |
+| Volume required before mount | ✅ `fly volumes create` BEFORE deploy |
 | `DATABASE_URL` driver scheme | ✅ auto-normalised to `+asyncpg`/`+psycopg2` |
 | Upstash TLS | ✅ `REDIS_USE_TLS=true` → `rediss://` |
-| `JWT_SECRET_KEY` default `"change-me"` | ⚠️ **must set** via `fly secrets` |
+| Upstash DB index | ✅ only DB `0` — both celery URLs use `/0` |
+| Upstash REST→TCP token | ✅ REST token works as TCP password |
+| Celery `ssl_cert_reqs` | ✅ `?ssl_cert_reqs=CERT_REQUIRED` appended |
+| `JWT_SECRET_KEY` default `"change-me"` | ✅ random 64-char secret set |
 | `CORS_ORIGINS` JSON brackets | ⚠️ comma-separated only |
 | `NEXT_PUBLIC_WS_URL` | ⚠️ leave unset — no socket.io backend |
 | ffmpeg in container | ✅ installed in `Dockerfile.railway` |
-| Alembic migrations | ✅ `alembic upgrade head` in CMD |
+| Auth tables (no migration) | ✅ `deploy/init_db.py` + `alembic stamp head` |
+| Deploy to existing app | ✅ use `flyctl deploy` — GitHub UI only creates NEW apps |
+| Stopped machine after crash-loop | ✅ `flyctl machine start <id>` |
 | Machine sleep | ✅ `auto_stop_machines = "off"` — worker/beat stay alive |
 | Shared storage api↔worker | ✅ single machine + volume |
+| Build context size | ✅ `.dockerignore` — 6.1 GB → ~750 KB upload |
 
 ## Cost check
 

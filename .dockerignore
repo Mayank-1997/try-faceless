@@ -1,0 +1,33 @@
+# Build context is the repo root (fly.toml / railway.toml build from here).
+# The Dockerfile only COPYs backend/, so everything else is dead weight.
+
+# Generated media + local artifacts (multi-GB)
+storage/
+project_*_outputs/
+.tmp_frames/
+*.mp4
+*.zip
+test_download.zip
+
+# Git + env
+.git/
+.env
+.env.*
+
+# Python junk
+**/.venv/
+**/__pycache__/
+**/*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Node junk
+**/node_modules/
+.next/
+out/
+
+# Logs + OS noise
+*.log
+nul
+.DS_Store
+Thumbs.db

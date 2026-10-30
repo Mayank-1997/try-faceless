@@ -1,49 +1,48 @@
-# Fly.io deployment — single app running API + Celery worker + beat under
-# supervisord (backend/deploy/supervisord.conf), same merged-service design
-# as Railway because the volume can't be shared across machines.
+# fly.toml app configuration file generated for try-faceless on 2026-10-30T13:18:07Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "ai-studio-api"
-primary_region = "sin"   # Singapore — closest to India
+app = 'try-faceless'
+primary_region = 'sin'
 
-# Build context is the repo root; the Dockerfile lives in backend/.
 [build]
-  dockerfile = "backend/Dockerfile.railway"
+  dockerfile = 'backend/Dockerfile.railway'
 
 [env]
-  APP_ENV = "production"
-  APP_DEBUG = "false"
-  APP_NAME = "AI Video Studio"
-  PORT = "8000"
-  STORAGE_TYPE = "local"
-  STORAGE_LOCAL_PATH = "/app/storage"
-  USE_VEO = "false"
-  USE_KLING = "true"
-  KLING_ENABLED = "true"
-  GOOGLE_TTS_ENABLED = "false"
-  REDIS_USE_TLS = "true"
-  # CORS_ORIGINS — comma-separated, set your real Vercel domain after first deploy:
-  CORS_ORIGINS = "http://localhost:3000"
+  APP_DEBUG = 'false'
+  APP_ENV = 'production'
+  APP_NAME = 'AI Video Studio'
+  CORS_ORIGINS = 'http://localhost:3000'
+  GOOGLE_TTS_ENABLED = 'false'
+  KLING_ENABLED = 'true'
+  PORT = '8000'
+  REDIS_USE_TLS = 'true'
+  STORAGE_LOCAL_PATH = '/app/storage'
+  STORAGE_TYPE = 'local'
+  USE_KLING = 'true'
+  USE_VEO = 'false'
+
+[[mounts]]
+  source = 'aivideo_data'
+  destination = '/app/storage'
 
 [http_service]
-  internal_port = 8000
+  internal_port = 8080
   force_https = true
-  auto_stop_machines = "off"   # worker+beat run inside; never sleep the machine
+  auto_stop_machines = 'off'
   auto_start_machines = true
   min_machines_running = 1
 
   [[http_service.checks]]
-    grace_period = "90s"       # alembic migrations + supervisord boot take time
-    interval = "30s"
-    method = "GET"
-    timeout = "5s"
-    path = "/health"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '1m30s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory_mb = 2048             # ffmpeg + celery + uvicorn share one machine
-
-# Persistent volume for generated videos + workflow_state JSON.
-# Create BEFORE first deploy:  fly volumes create aivideo_data --region sin --size 3
-[[mounts]]
-  source = "aivideo_data"
-  destination = "/app/storage"
+  size = 'shared-cpu-1x'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 2048

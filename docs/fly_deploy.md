@@ -147,24 +147,33 @@ Expected log lines: `database schema initialised` → `default_roles_seeded` →
 
 ## Step 7 — Vercel (frontend)
 
-1. vercel.com → **Import Project** → `Mayank-1997/Ai-Studio`.
+1. vercel.com → **Import Project** → `Mayank-1997/try-faceless`.
 2. **Root directory**: `frontend` (monorepo — Vercel detects Turborepo +
    picks `apps/web`).
 3. Env vars:
 
 ```env
-NEXT_PUBLIC_API_URL=https://ai-studio-api.fly.dev
+NEXT_PUBLIC_API_BASE_URL=https://ai-studio-api.fly.dev/api/v1
 NEXT_PUBLIC_VIDEO_PROVIDER=kling
 # NEXT_PUBLIC_WS_URL — leave UNSET (no socket.io backend; realtime no-ops)
 ```
 
+The URL must include `/api/v1`; the frontend reads
+`NEXT_PUBLIC_API_BASE_URL`, not `NEXT_PUBLIC_API_URL`. Set it for the
+**Production** environment and redeploy after changing it (Next.js embeds
+`NEXT_PUBLIC_*` variables at build time).
+
 4. Deploy → copy your `https://<app>.vercel.app` domain → update Fly:
 
 ```powershell
-fly secrets set CORS_ORIGINS="https://<app>.vercel.app" -a ai-studio-api
+flyctl secrets set CORS_ORIGINS="https://<app>.vercel.app" -a ai-studio-api
 ```
 
 > `CORS_ORIGINS` is **comma-separated** — no JSON brackets.
+> A Vercel `500 FUNCTION_INVOCATION_FAILED` on the initial page is a frontend
+> runtime error, not a CORS failure. Inspect the failed request in Vercel
+> **Project → Logs** (filter to the deployment and `/`), and use the exception
+> and stack trace to diagnose it before changing the backend.
 
 ## Step 8 — Smoke test
 
